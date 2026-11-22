@@ -3,7 +3,7 @@ import glob, json, os, re, subprocess, sys
 from PIL import Image, ImageOps, ImageDraw, ImageFont, ImageFilter
 
 S = '/tmp/claude-0/-home-user-raungcamp/b0706bff-2b10-5382-a9f0-3081491f33ef/scratchpad'
-B = f'{S}/build'; os.makedirs(f'{B}/shots', exist_ok=True); os.makedirs(f'{B}/text', exist_ok=True)
+B = f'{S}/build2'; os.makedirs(f'{B}/shots', exist_ok=True); os.makedirs(f'{B}/text', exist_ok=True)
 exec(open(f'{S}/scripts/shots.py').read())
 W, H, FPS = 2160, 3840, 30
 ONLY_TEXT = '--text-only' in sys.argv
@@ -48,8 +48,12 @@ if not ONLY_TEXT:
         m = subprocess.run(['ffmpeg', '-hide_banner', '-ss', str(si), '-t', str(D), '-i', src, '-map', amap,
                             '-af', 'volumedetect', '-f', 'null', '-'], capture_output=True, text=True).stderr
         mv = float(re.search(r'mean_volume: (-?[\d.]+)', m).group(1))
-        g_db = max(-12, min(12, -26 - mv)) + 20 * __import__('math').log10(nat_gain(a))
+        g_db = max(-12, min(12, -26 - mv)) + 20 * __import__('math').log10(fl.get('nat', nat_gain(a)))
         af = f"volume={g_db:.2f}dB,afade=t=in:d=0.03,afade=t=out:st={D-0.04}:d=0.04"
+    if 'crop' in fl:
+        cx, cy, f = fl['crop']; cw = int(W / f) // 2 * 2; ch = int(H / f) // 2 * 2
+        cxx = max(0, min(W - cw, cx - cw // 2)); cyy = max(0, min(H - ch, cy - ch // 2))
+        vf = f"scale={W}:{H}:flags=lanczos,crop={cw}:{ch}:{cxx}:{cyy},scale={W}:{H}:flags=lanczos"
     if fl.get('zoom'):
         vf += (f",scale=w='trunc({W}*(1+0.05*t/{D})/2)*2':h='trunc({H}*(1+0.05*t/{D})/2)*2'"
                f":eval=frame:flags=bicubic,crop={W}:{H}")
@@ -98,28 +102,29 @@ def card(name, lines, cy):
     return p, CX - tw // 2, cy - th // 2
 
 TEXTS = [  # (png info, t_in, t_out)
-    (card('hook', [('Kalau kau kat sini,', font(BAR, 190), 0, 10), ('kau teruskan tak?', font(BAR, 190), 0, 0)], 1450), 0.30, 3.80),
-    (card('surabaya', [('Semuanya bermula di Surabaya.', font(BAR, 138), 0, 0)], 2700), 6.60, 10.90),
-    (card('lbl_cp7', [('Basecamp  →  CP7', font(DMS, 66, True), 4, 0)], 2860), 14.15, 17.00),
-    (card('lbl_camp', [('CP7  ·  Campsite', font(DMS, 66, True), 4, 0)], 2860), 24.10, 27.60),
-    (card('lbl_push', [('04:57  ·  Menuju puncak', font(DMS, 66, True), 4, 0)], 2860), 30.10, 33.60),
-    (card('title', [('GUNUNG RAUNG', font(BAR, 290), 6, 0)], 1250), 45.35, 54.60),
-    (card('subtitle', [('Jawa Timur, Indonesia', font(DMS, 84, True), 10, 0)], 1455), 45.95, 54.60),
-    (card('day1', [('Hari 1  •  Kuala Lumpur ke Surabaya', font(BAR, 112), 0, 0)], 2760), 57.85, 60.00),
+    (card('hook', [('Kat sini, kau berani', font(BAR, 180), 0, 10), ('langkah lagi?', font(BAR, 180), 0, 0)], 1450), 1.55, 3.85),
+    (card('surabaya', [('Semuanya bermula di Surabaya.', font(BAR, 138), 0, 0)], 1000), 4.15, 7.70),
+    (card('lbl_cp7', [('Basecamp  →  CP7', font(DMS, 66, True), 4, 0)], 2860), 9.10, 11.40),
+    (card('lbl_camp', [('CP7  ·  Campsite', font(DMS, 66, True), 4, 0)], 2860), 16.60, 19.90),
+    (card('lbl_push', [('04:57  ·  Menuju puncak', font(DMS, 66, True), 4, 0)], 2860), 20.35, 22.70),
+    (card('title', [('GUNUNG RAUNG', font(BAR, 290), 6, 0)], 1250), 38.00, 43.70),
+    (card('subtitle', [('Jawa Timur, Indonesia', font(DMS, 84, True), 10, 0)], 1455), 38.50, 43.70),
+    (card('day1', [('Hari 1  •  Kuala Lumpur ke Surabaya', font(BAR, 112), 0, 0)], 2760), 57.75, 60.00),
 ]
 if ONLY_TEXT:
     print(json.dumps([(p, x, y, a, b) for (p, x, y), a, b in TEXTS], indent=1)); raise SystemExit
 
 # ---------- 3. final composite + audio mix ----------
-inp = ['-i', f'{B}/assembled.mkv', '-i', f'{B}/score.wav']
+inp = ['-i', f'{B}/assembled.mkv', '-i', f'{B}/score_v2.wav']
 fc = []; last = '0:v'
 RISE, FIN, FOUT = 46, 0.6, 0.35
 for k, ((p, x, y), a, b) in enumerate(TEXTS):
     inp += ['-loop', '1', '-framerate', str(FPS), '-t', '60', '-i', p]
     j = k + 2
+    fin = 0.25 if a == 38.0 else FIN
     fo = '' if b >= 59.99 else f",fade=t=out:st={b - FOUT}:d={FOUT}:alpha=1"
-    fc.append(f"[{j}:v]format=rgba,fade=t=in:st={a}:d={FIN}:alpha=1{fo}[t{k}]")
-    yexpr = f"{y}+{RISE}*pow(1-min(1\\,max(0\\,(t-{a})/{FIN}))\\,3)"
+    fc.append(f"[{j}:v]format=rgba,fade=t=in:st={a}:d={fin}:alpha=1{fo}[t{k}]")
+    yexpr = f"{y}+{RISE}*pow(1-min(1\\,max(0\\,(t-{a})/{fin}))\\,3)"
     fc.append(f"[{last}][t{k}]overlay=x={x}:y='{yexpr}':enable='between(t,{a},{b})':eval=frame[v{k}]")
     last = f'v{k}'
 fc.append(f"[{last}]format=yuv420p[vout]")
@@ -132,7 +137,7 @@ m = json.loads(re.search(r'\{[^{}]*"input_i"[^{}]*\}', pre.stderr).group(0))
 ln = (f"loudnorm=I=-14:TP=-1.5:LRA=11:linear=true:measured_I={m['input_i']}:measured_TP={m['input_tp']}"
       f":measured_LRA={m['input_lra']}:measured_thresh={m['input_thresh']}:offset={m['target_offset']}")
 fc[-1] += f";[mix]{ln},aresample=48000[aout]"
-out = sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].startswith('--') else f'{B}/raung_trailer_2160x3840.mp4'
+out = sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].startswith('--') else f'{B}/raung_trailer_v2_2160x3840.mp4'
 run(['ffmpeg', '-y', '-v', 'error', *inp, '-filter_complex', ';'.join(fc), '-map', '[vout]', '-map', '[aout]',
      '-t', '60', '-c:v', 'libx264', '-preset', 'medium', '-crf', '17', '-profile:v', 'high', '-level', '5.1',
      '-pix_fmt', 'yuv420p', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-colorspace', 'bt709',
