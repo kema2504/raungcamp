@@ -31,7 +31,7 @@ SHOTS = [
     (30.250,31.500, "IMG_0001__1aVWTJ", 12.5, {"crop": (1300, 2500, 2.0), "nat": 0.75}), # close: feet on knife edge
     (31.500,34.000, "IMG_1372__1Y-z31", 13.5, {"nat": 0.7}),    # wide: ridge + drop, HOLD 2.5 s
     (34.000,36.250, "IMG_1389__1YoxPk", 0.0,  {"nat": 0.8}),    # walking to the rim
-    (36.250,38.000, "IMG_0026__1MKMcW", 0.0,  {"nat": 1.0}),    # summit sign; music silent 37.5-38.0
+    (36.250,38.000, "IMG_0026__1MKMcW", 0.0,  {"nat": 0.45}),    # summit sign; music silent 37.5-38.0
     # REVEAL
     (38.000,44.000, "IMG_0026__1MKMcW", 4.3,  {"zoom": True, "nat": 0.2}),  # crater fills screen, BASS HIT + title
     (44.000,46.000, "IMG_1399__1oszLD", 0.0,  {"nat": 0.3}),    # arms up over the crater

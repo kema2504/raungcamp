@@ -28,7 +28,7 @@ GRADE = "curves=all='0/0 0.25/0.245 0.6/0.61 0.85/0.83 1/0.95',eq=contrast=1.03:
 # ---------- 1. per-shot intermediates ----------
 if not ONLY_TEXT:
   for i, (a, b, pre, si, fl) in enumerate(SHOTS):
-    D = round(b - a, 4); src = glob.glob(f'{S}/raw/{pre}*')[0]
+    NF = round(b * FPS) - round(a * FPS); D = NF / FPS; src = glob.glob(f'{S}/raw/{pre}*')[0]
     out = f'{B}/shots/{i:02d}.mkv'
     if os.path.exists(out) and os.path.getsize(out) > 0: continue
     sat = 0.96 if pre.startswith(('IMG_0001', 'IMG_9982', 'IMG_0056')) else 1.04
@@ -60,7 +60,7 @@ if not ONLY_TEXT:
     vf += f",fps={FPS}," + GRADE.format(sat=sat) + ",setsar=1,format=yuv420p"
     run(['ffmpeg', '-y', '-v', 'error', *inputs, '-map', '0:v:0', '-map', amap,
          '-vf', vf, '-af', af + ',aresample=48000,aformat=channel_layouts=stereo',
-         '-t', str(D), '-frames:v', str(round(D * FPS)),
+         '-t', str(D), '-frames:v', str(NF),
          '-c:v', 'libx264', '-preset', 'fast', '-crf', '12', '-c:a', 'pcm_s16le', out])
     print('shot', i, pre, D, flush=True)
 
