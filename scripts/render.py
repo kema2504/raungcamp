@@ -30,6 +30,7 @@ if not ONLY_TEXT:
   for i, (a, b, pre, si, fl) in enumerate(SHOTS):
     D = round(b - a, 4); src = glob.glob(f'{S}/raw/{pre}*')[0]
     out = f'{B}/shots/{i:02d}.mkv'
+    if os.path.exists(out) and os.path.getsize(out) > 0: continue
     sat = 0.96 if pre.startswith(('IMG_0001', 'IMG_9982', 'IMG_0056')) else 1.04
     if fl.get('photo'):
         jp = f'{B}/shots/{i:02d}_photo.png'
@@ -39,9 +40,12 @@ if not ONLY_TEXT:
         vf = f"scale=-2:{H}:flags=lanczos,crop={W}:{H}"; amap = '1:a'; af = 'anull'
     else:
         inputs = ['-ss', str(si), '-t', str(D + 0.1), '-i', src]
-        vf = f"scale={W}:{H}:flags=lanczos"; amap = '0:a:0'
+        vf = f"scale={W}:{H}:flags=lanczos"
+        codecs = subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'a', '-show_entries', 'stream=codec_name',
+                                 '-of', 'csv=p=0', src], capture_output=True, text=True).stdout.split()
+        amap = f"0:a:{codecs.index('aac')}"
         # measure loudness of the segment and normalise nat sound to ~-26 dB mean
-        m = subprocess.run(['ffmpeg', '-hide_banner', '-ss', str(si), '-t', str(D), '-i', src, '-map', '0:a:0',
+        m = subprocess.run(['ffmpeg', '-hide_banner', '-ss', str(si), '-t', str(D), '-i', src, '-map', amap,
                             '-af', 'volumedetect', '-f', 'null', '-'], capture_output=True, text=True).stderr
         mv = float(re.search(r'mean_volume: (-?[\d.]+)', m).group(1))
         g_db = max(-12, min(12, -26 - mv)) + 20 * __import__('math').log10(nat_gain(a))
